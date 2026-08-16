@@ -1,73 +1,53 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { dashboardRows, type DashboardRow } from "./dashboard-data";
 
-type ProfileKey = "all" | "puppy" | "adult" | "senior";
-type IntakeKey = "all" | "stray" | "owner";
+type ProfileKey = "all" | "puppy" | "young" | "adult" | "senior";
+type IntakeKey = "all" | "stray" | "owner" | "other";
 
-type AgeBand = {
-  label: string;
+type TrendPoint = {
+  year: string;
   days: number;
-  records: number;
 };
 
-type Profile = {
-  label: string;
-  median: number;
-  ages: AgeBand[];
+const profiles: Record<ProfileKey, { label: string; dataLabel: string }> = {
+  all: { label: "All dogs", dataLabel: "All dogs" },
+  puppy: { label: "Puppies", dataLabel: "Puppy" },
+  young: { label: "Young", dataLabel: "Young" },
+  adult: { label: "Adults", dataLabel: "Adult" },
+  senior: { label: "Seniors", dataLabel: "Senior" },
 };
 
-const profiles: Record<ProfileKey, Profile> = {
-  all: {
-    label: "All dogs",
-    median: 21,
-    ages: [
-      { label: "Puppy", days: 12, records: 18400 },
-      { label: "Young", days: 16, records: 27100 },
-      { label: "Adult", days: 26, records: 41800 },
-      { label: "Senior", days: 34, records: 9600 },
-    ],
-  },
-  puppy: {
-    label: "Puppies",
-    median: 12,
-    ages: [
-      { label: "0–3 mo", days: 9, records: 5800 },
-      { label: "4–6 mo", days: 11, records: 6100 },
-      { label: "7–9 mo", days: 14, records: 3900 },
-      { label: "10–12 mo", days: 17, records: 2600 },
-    ],
-  },
-  adult: {
-    label: "Adults",
-    median: 26,
-    ages: [
-      { label: "2–3 yrs", days: 21, records: 14200 },
-      { label: "4–5 yrs", days: 25, records: 13700 },
-      { label: "6–7 yrs", days: 29, records: 8900 },
-      { label: "Unknown", days: 31, records: 5000 },
-    ],
-  },
-  senior: {
-    label: "Seniors",
-    median: 34,
-    ages: [
-      { label: "8–9 yrs", days: 29, records: 3800 },
-      { label: "10–11 yrs", days: 34, records: 3100 },
-      { label: "12–13 yrs", days: 39, records: 1900 },
-      { label: "14+ yrs", days: 44, records: 800 },
-    ],
-  },
+const intakeTypes: Record<IntakeKey, { label: string; dataLabel: string }> = {
+  all: { label: "All intake types", dataLabel: "All intake types" },
+  stray: { label: "Stray", dataLabel: "Stray" },
+  owner: { label: "Owner surrender", dataLabel: "Owner surrender" },
+  other: { label: "Other", dataLabel: "Other" },
 };
 
-const intakeTypes: Record<IntakeKey, { label: string; multiplier: number }> = {
-  all: { label: "All intake types", multiplier: 1 },
-  stray: { label: "Stray", multiplier: 0.9 },
-  owner: { label: "Owner surrender", multiplier: 1.18 },
+const ageOrder = ["Puppy", "Young", "Adult", "Senior"] as const;
+const ageProfileKeys: Record<(typeof ageOrder)[number], ProfileKey> = {
+  Puppy: "puppy",
+  Young: "young",
+  Adult: "adult",
+  Senior: "senior",
 };
+const years = Array.from({ length: 11 }, (_, index) => String(2014 + index));
+const numberFormatter = new Intl.NumberFormat("en");
 
-const trend = [18, 20, 19, 23, 22, 24, 28, 31, 27, 23, 21];
-const years = ["2014", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24"];
+function findMetric(year: string, age: string, intake: string): DashboardRow | undefined {
+  return dashboardRows.find(
+    (row) =>
+      row.yearFilter === year &&
+      row.ageFilter === age &&
+      row.intakeFilter === intake,
+  );
+}
+
+function formatDays(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
 
 function PawMark() {
   return (
@@ -81,22 +61,24 @@ function PawMark() {
   );
 }
 
-function TrendChart({ values }: { values: number[] }) {
+function TrendChart({ points }: { points: TrendPoint[] }) {
   const width = 680;
   const height = 280;
   const insetX = 34;
   const insetTop = 22;
   const insetBottom = 46;
-  const max = Math.max(...values) + 5;
-  const min = Math.max(0, Math.min(...values) - 5);
+  const values = points.map((point) => point.days);
+  const max = Math.ceil(Math.max(...values)) + 2;
+  const min = Math.max(0, Math.floor(Math.min(...values)) - 2);
+  const range = Math.max(1, max - min);
   const plotHeight = height - insetTop - insetBottom;
   const plotWidth = width - insetX * 2;
-  const points = values.map((value, index) => {
-    const x = insetX + (plotWidth * index) / (values.length - 1);
-    const y = insetTop + ((max - value) / (max - min)) * plotHeight;
-    return { x, y, value };
+  const chartPoints = points.map((point, index) => {
+    const x = insetX + (plotWidth * index) / Math.max(1, points.length - 1);
+    const y = insetTop + ((max - point.days) / range) * plotHeight;
+    return { ...point, x, y };
   });
-  const line = points.map((point) => point.x + "," + point.y).join(" ");
+  const line = chartPoints.map((point) => point.x + "," + point.y).join(" ");
   const area =
     insetX +
     "," +
@@ -114,11 +96,11 @@ function TrendChart({ values }: { values: number[] }) {
         className="trend-chart"
         viewBox={"0 0 " + width + " " + height}
         role="img"
-        aria-label="Illustrative median shelter wait by year"
+        aria-label="Snowflake median shelter wait by intake year"
       >
         {[0, 1, 2, 3].map((lineIndex) => {
           const y = insetTop + (plotHeight * lineIndex) / 3;
-          const value = Math.round(max - ((max - min) * lineIndex) / 3);
+          const value = Math.round(max - (range * lineIndex) / 3);
           return (
             <g key={lineIndex}>
               <line className="grid-line" x1={insetX} x2={width - insetX} y1={y} y2={y} />
@@ -130,13 +112,13 @@ function TrendChart({ values }: { values: number[] }) {
         })}
         <polygon className="trend-area" points={area} />
         <polyline className="trend-line" points={line} />
-        {points.map((point, index) => (
-          <g key={years[index]}>
+        {chartPoints.map((point, index) => (
+          <g key={point.year}>
             <circle className="trend-dot" cx={point.x} cy={point.y} r="5">
-              <title>{years[index] + ": " + point.value + " days"}</title>
+              <title>{point.year + ": " + formatDays(point.days) + " median days"}</title>
             </circle>
             <text className="axis-year" x={point.x} y={height - 18}>
-              {years[index]}
+              {index === 0 ? point.year : point.year.slice(2)}
             </text>
           </g>
         ))}
@@ -154,19 +136,37 @@ export default function Home() {
   const intake = intakeTypes[intakeKey];
 
   const data = useMemo(() => {
-    const profileFactor = profile.median / profiles.all.median;
-    return {
-      median: Math.round(profile.median * intake.multiplier),
-      ages: profile.ages.map((age) => ({
-        ...age,
-        days: Math.round(age.days * intake.multiplier),
-      })),
-      trend: trend.map((value) => Math.round(value * profileFactor * intake.multiplier)),
-    };
+    const selected =
+      findMetric("All", profile.dataLabel, intake.dataLabel) ??
+      findMetric("All", "All dogs", "All intake types")!;
+
+    const ages = ageOrder.flatMap((label) => {
+      const metric = findMetric("All", label, intake.dataLabel);
+      return metric
+        ? [
+            {
+              label,
+              profileKey: ageProfileKeys[label],
+              days: metric.medianWaitDays,
+              records: metric.dogStays,
+            },
+          ]
+        : [];
+    });
+
+    const trend = years.flatMap((year) => {
+      const metric = findMetric(year, profile.dataLabel, intake.dataLabel);
+      return metric ? [{ year, days: metric.medianWaitDays }] : [];
+    });
+
+    return { selected, ages, trend };
   }, [profile, intake]);
 
   const maxAgeDays = Math.max(...data.ages.map((age) => age.days));
-  const recordCount = profile.ages.reduce((sum, age) => sum + age.records, 0);
+  const peak = data.trend.reduce(
+    (highest, point) => (point.days > highest.days ? point : highest),
+    data.trend[0],
+  );
 
   return (
     <main>
@@ -178,7 +178,7 @@ export default function Home() {
         <div className="nav-links">
           <a href="#explore">Explore</a>
           <a href="#methodology">Methodology</a>
-          <span className="preview-pill">Preview data</span>
+          <span className="preview-pill data-live">Snowflake data</span>
         </div>
       </nav>
 
@@ -193,8 +193,8 @@ export default function Home() {
             <em>they waited.</em>
           </h1>
           <p className="hero-lede">
-            Still Waiting turns years of public shelter records into one clear question:
-            which dogs wait longest for a way home?
+            Still Waiting joins more than a decade of public shelter records to ask one clear
+            question: which dogs wait longest for a way home?
           </p>
           <a className="primary-link" href="#explore">
             Explore the wait <span aria-hidden="true">↓</span>
@@ -203,21 +203,21 @@ export default function Home() {
         <aside className="hero-note" aria-label="Project summary">
           <PawMark />
           <p>
-            Built with <strong>Snowflake</strong> to join intake and outcome records, calculate
-            each stay, and reveal patterns hidden across thousands of rows.
+            Built with <strong>Snowflake</strong> to pair each intake with its next valid outcome,
+            calculate the stay, and aggregate the patterns.
           </p>
           <dl>
             <div>
-              <dt>10+</dt>
-              <dd>years</dd>
+              <dt>11</dt>
+              <dd>complete years</dd>
+            </div>
+            <div>
+              <dt>89.7k</dt>
+              <dd>analyzed stays</dd>
             </div>
             <div>
               <dt>2</dt>
-              <dd>datasets</dd>
-            </div>
-            <div>
-              <dt>1</dt>
-              <dd>urgent question</dd>
+              <dd>joined datasets</dd>
             </div>
           </dl>
         </aside>
@@ -225,8 +225,8 @@ export default function Home() {
 
       <section className="statement">
         <p>
-          Averages can make waiting feel abstract. This project makes the pattern visible—so
-          overlooked dogs are harder to overlook.
+          The median stay was six days. The average was 21.2. That gap is the long tail of dogs
+          still waiting.
         </p>
       </section>
 
@@ -238,7 +238,7 @@ export default function Home() {
           </div>
           <p className="data-note">
             <span />
-            Illustrative preview. Snowflake results replace these values after data load.
+            Verified Snowflake aggregates · 89,723 complete-year stays.
           </p>
         </div>
 
@@ -275,14 +275,17 @@ export default function Home() {
           <article className="metric-card">
             <p>Median time to outcome</p>
             <div className="metric-number">
-              <strong>{data.median}</strong>
+              <strong>{formatDays(data.selected.medianWaitDays)}</strong>
               <span>days</span>
             </div>
             <p className="metric-context">
-              for {profile.label.toLowerCase()} · {intake.label.toLowerCase()}
+              {profile.label} · {intake.label}
+            </p>
+            <p className="metric-average">
+              Average: {formatDays(data.selected.averageWaitDays)} days
             </p>
             <div className="record-line">
-              <span>{new Intl.NumberFormat("en").format(recordCount)} illustrative records</span>
+              <span>{numberFormatter.format(data.selected.dogStays)} matched stays</span>
               <span>2014–2024</span>
             </div>
           </article>
@@ -291,19 +294,33 @@ export default function Home() {
             <div className="card-heading">
               <div>
                 <p className="card-kicker">By age band</p>
-                <h3>Older dogs wait longer</h3>
+                <h3>The age pattern isn&apos;t linear</h3>
               </div>
-              <span>median days</span>
+              <span>tap to filter</span>
             </div>
             <div className="bar-list">
               {data.ages.map((age) => (
-                <div className="bar-row" key={age.label}>
+                <button
+                  className={"bar-row " + (profileKey === age.profileKey ? "selected" : "")}
+                  key={age.label}
+                  type="button"
+                  onClick={() => setProfileKey(age.profileKey)}
+                  aria-pressed={profileKey === age.profileKey}
+                  aria-label={
+                    age.label +
+                    ": " +
+                    formatDays(age.days) +
+                    " median days across " +
+                    numberFormatter.format(age.records) +
+                    " stays"
+                  }
+                >
                   <span>{age.label}</span>
                   <div className="bar-track">
                     <i style={{ width: Math.max(9, (age.days / maxAgeDays) * 100) + "%" }} />
                   </div>
-                  <strong>{age.days}</strong>
-                </div>
+                  <strong>{formatDays(age.days)}</strong>
+                </button>
               ))}
             </div>
           </article>
@@ -312,11 +329,13 @@ export default function Home() {
             <div className="card-heading">
               <div>
                 <p className="card-kicker">Across time</p>
-                <h3>The wait is not a fixed number</h3>
+                <h3>Median wait by intake year</h3>
               </div>
-              <span>median days</span>
+              <span>
+                Peak {formatDays(peak.days)} · {peak.year}
+              </span>
             </div>
-            <TrendChart values={data.trend} />
+            <TrendChart points={data.trend} />
           </article>
         </div>
       </section>
@@ -324,25 +343,33 @@ export default function Home() {
       <section className="questions section-shell">
         <div className="section-heading compact">
           <div>
-            <p className="eyebrow">The questions behind the query</p>
-            <h2>What the final analysis will test</h2>
+            <p className="eyebrow">Snowflake findings</p>
+            <h2>What the records revealed</h2>
           </div>
         </div>
         <div className="question-grid">
           <article>
             <span>01</span>
-            <h3>Does age change the wait?</h3>
-            <p>Compare puppies, adults, and seniors using median—not only average—shelter stays.</p>
+            <h3>Six days hides a long tail.</h3>
+            <p>
+              Across 89,723 stays, the median was 6 days while the average reached 21.2 days.
+            </p>
           </article>
           <article>
             <span>02</span>
-            <h3>Does the path in matter?</h3>
-            <p>Separate strays from owner surrenders and other intake types to expose context.</p>
+            <h3>The wait peaked in 2023.</h3>
+            <p>
+              The shelter-wide median rose from 5.3 days in 2019 to 13.9 in 2023, then eased to
+              10.8 in 2024.
+            </p>
           </article>
           <article>
             <span>03</span>
-            <h3>Has the pattern shifted?</h3>
-            <p>Track annual change and make disruption years visible instead of smoothing them away.</p>
+            <h3>Intake context matters.</h3>
+            <p>
+              Median stays were 5.3 days for strays, 6.9 for owner surrenders, and 8.3 for other
+              intake paths.
+            </p>
           </article>
         </div>
       </section>
@@ -353,34 +380,34 @@ export default function Home() {
             <p className="eyebrow">Methodology</p>
             <h2>From two messy files to one honest measure.</h2>
             <p className="method-lede">
-              Snowflake does the analytical work: cleaning timestamps, matching each intake to
-              its next valid outcome, calculating elapsed days, then aggregating without exposing
-              individual records.
+              Snowflake cleans timestamps, matches each intake to its next valid outcome,
+              calculates elapsed days, and builds a filterable aggregate cube without publishing
+              animal-level records.
             </p>
           </div>
           <div className="pipeline" aria-label="Data pipeline">
             <div>
               <span>01</span>
               <strong>Raw intakes</strong>
-              <small>CSV → Snowflake</small>
+              <small>173,813 rows</small>
             </div>
             <i aria-hidden="true">+</i>
             <div>
               <span>02</span>
               <strong>Raw outcomes</strong>
-              <small>CSV → Snowflake</small>
+              <small>173,775 rows</small>
             </div>
             <i aria-hidden="true">→</i>
             <div>
               <span>03</span>
               <strong>Matched stays</strong>
-              <small>Animal ID + time</small>
+              <small>93,792 stays</small>
             </div>
             <i aria-hidden="true">→</i>
             <div className="result-step">
               <span>04</span>
               <strong>Wait summary</strong>
-              <small>Median + segments</small>
+              <small>89,723 complete-year stays</small>
             </div>
           </div>
           <button
@@ -396,12 +423,12 @@ export default function Home() {
             <div className="method-details">
               <p>
                 One intake is paired only with the earliest outcome after it and before a later
-                intake. Negative intervals, non-dog records, and incomplete timestamps are
-                excluded. Medians reduce the effect of unusually long or short stays.
+                intake. Non-dog rows, incomplete timestamps, and negative intervals are excluded.
+                Medians reduce the influence of unusually long stays.
               </p>
               <p>
-                The public release contains aggregated counts only. The interface always labels
-                preview values separately from query-derived results.
+                The analysis uses complete calendar years 2014–2024. Of 93,792 matched dog stays,
+                89,723 fall inside that window. The public interface contains aggregates only.
               </p>
             </div>
           )}
@@ -417,15 +444,23 @@ export default function Home() {
           </div>
         </div>
         <p>
-          Source planned:{" "}
+          Source: City of Austin open data—{" "}
           <a
-            href="https://data.austintexas.gov/browse?category=Health+and+Community+Services"
+            href="https://data.austintexas.gov/Health-and-Community-Services/Austin-Animal-Center-Intakes-10-01-2013-to-05-05-2/wter-evkm"
             target="_blank"
             rel="noreferrer"
           >
-            Austin Animal Center open data
+            intakes
+          </a>{" "}
+          and{" "}
+          <a
+            href="https://data.austintexas.gov/Health-and-Community-Services/Austin-Animal-Center-Outcomes-10-01-2013-to-05-05-/9t4d-g238"
+            target="_blank"
+            rel="noreferrer"
+          >
+            outcomes
           </a>
-          . Preview figures are illustrative and must not be cited.
+          . Aggregated in Snowflake for complete years 2014–2024.
         </p>
       </footer>
     </main>

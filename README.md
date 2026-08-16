@@ -4,17 +4,17 @@ Still Waiting is an interactive shelter-data story for the
 [DEV Weekend Challenge: Dog Days Edition](https://dev.to/challenges/weekend-2026-08-13).
 It asks a focused question: which dogs wait longest for a way home?
 
-The interface is deliberately transparent about data state. The current values
-are illustrative preview data; they must be replaced with the aggregate output
-from Snowflake before the final submission.
+The production interface uses a validated aggregate export from Snowflake:
+89,723 matched dog stays across complete calendar years 2014–2024. No
+animal-level records are shipped to the browser.
 
 ## What is built
 
 - Responsive editorial landing page
-- Interactive age and intake filters
+- Interactive age and intake filters backed by the Snowflake aggregate cube
 - Headline median, age-band bars, and annual trend
 - Expandable methodology and matching rules
-- Snowflake setup, transformation, quality-check, and result SQL
+- Snowflake setup, transformation, quality-check, and reproducible export SQL
 
 ## Run locally
 
@@ -31,6 +31,9 @@ Follow [snowflake/README.md](snowflake/README.md). Run the scripts in order:
 The analytical grain is one matched shelter stay. Each intake is paired with
 the earliest valid outcome before that animal's next intake. Final web output
 contains aggregate counts and medians only.
+
+The validated export is retained at data/snowflake-dashboard.csv and compiled
+into the typed frontend module at app/dashboard-data.ts.
 
 ## Data source
 

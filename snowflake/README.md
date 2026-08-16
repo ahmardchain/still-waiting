@@ -16,12 +16,12 @@ Still Waiting uses two official City of Austin CSV exports:
 5. Confirm the final query in 01_setup.sql reports non-zero row counts.
 6. Run 02_analysis.sql, inspect both quality-check result sets, then run
    03_results.sql.
-7. Copy or download the four aggregate result tables. Do not expose Snowflake
-   credentials or raw animal-level records in the frontend.
+7. Download the dashboard-cube result from 03_results.sql as CSV. Do not expose
+   Snowflake credentials or raw animal-level records in the frontend.
 
 If the upload wizard creates a table instead of offering the existing table,
 cancel and reopen it from **Data → Databases → STILL_WAITING → ANALYTICS**, then
 choose **Load Data** on the target table.
 
-The site intentionally ships in clearly labeled illustrative-preview mode
-until these query results are inserted.
+The production site embeds the validated aggregate export. Rerun the cube query
+and replace data/snowflake-dashboard.csv when refreshing the analysis.

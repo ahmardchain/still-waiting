@@ -87,6 +87,12 @@ a {
   padding: 7px 12px;
 }
 
+.preview-pill.data-live {
+  background: var(--sage);
+  border-color: var(--sage);
+  color: var(--white);
+}
+
 .paw-mark {
   display: inline-block;
   height: 30px;
@@ -428,6 +434,12 @@ a {
   margin: 0;
 }
 
+.metric-average {
+  color: #aeb9b3;
+  font-size: 0.78rem;
+  margin: -12px 0 0;
+}
+
 .record-line {
   border-top: 1px solid #3b4842;
   color: #98a49e;
@@ -472,10 +484,30 @@ a {
 
 .bar-row {
   align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--ink);
+  cursor: pointer;
   display: grid;
   font-size: 0.76rem;
   gap: 13px;
   grid-template-columns: 76px 1fr 28px;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+}
+
+.bar-row:hover span,
+.bar-row:focus-visible span,
+.bar-row.selected span,
+.bar-row.selected strong {
+  color: var(--rust-dark);
+  font-weight: 700;
+}
+
+.bar-row:focus-visible {
+  outline: 2px solid var(--rust);
+  outline-offset: 6px;
 }
 
 .bar-track {
@@ -490,6 +522,10 @@ a {
   height: 100%;
   min-width: 8px;
   transition: width 350ms ease;
+}
+
+.bar-row.selected .bar-track i {
+  background: var(--dark);
 }
 
 .bar-row strong {
